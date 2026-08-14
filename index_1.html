@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="訂單簿">
+<meta name="theme-color" content="#1c1917">
+<link rel="manifest" href="data:application/json,{%22name%22:%22代購訂單簿%22,%22short_name%22:%22訂單簿%22,%22display%22:%22standalone%22,%22background_color%22:%22%23f5f5f4%22,%22theme_color%22:%22%231c1917%22,%22start_url%22:%22./%22}">
+<title>代購訂單簿</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--ink:#1c1917;--paper:#f5f5f4;--line:#e7e5e4;--mute:#78716c;--faint:#a8a29e;
+  --green:#047857;--red:#dc2626;--amber:#b45309;--sky:#0369a1}
+body{font-family:-apple-system,"PingFang HK","Noto Sans HK","Microsoft JhengHei",sans-serif;
+  background:var(--paper);color:var(--ink);font-size:15px;line-height:1.45;-webkit-text-size-adjust:100%}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-variant-numeric:tabular-nums}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:none}
+header{background:var(--ink);color:#f5f5f4;padding:10px 14px;position:sticky;top:0;z-index:20}
+.hwrap{max-width:1000px;margin:0 auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.brand{font-weight:600}
+.sync{font-size:11px;display:flex;align-items:center;gap:4px}
+.sync.ok{color:#34d399}.sync.off{color:#fbbf24}.sync.err{color:#f87171}.sync.load{color:#a8a29e}
+.tabs{margin-left:auto;display:flex;gap:2px}
+.tabs button{padding:6px 12px;border-radius:5px;font-size:14px;color:#a8a29e}
+.tabs button.on{background:#f5f5f4;color:var(--ink);font-weight:500}
+main{max-width:1000px;margin:0 auto;padding:14px;padding-bottom:80px}
+.batchbar{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:10px}
+.btab{flex:0 0 auto;padding:6px 11px;border-radius:6px 6px 0 0;border-bottom:3px solid transparent;
+  display:flex;align-items:center;gap:7px;font-size:14px;color:var(--mute);white-space:nowrap}
+.btab.on{background:#fff;color:var(--ink);font-weight:500}
+.dot{width:10px;height:10px;border-radius:2px;flex:0 0 auto}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-bottom:10px}
+@media(min-width:760px){.stats{grid-template-columns:repeat(5,1fr)}.stats.four{grid-template-columns:repeat(4,1fr)}}
+.stat{background:#fff;border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+.stat .k{font-size:11px;color:var(--mute)}
+.stat .v{font-size:18px;font-weight:600}
+.stat .s{font-size:11px;color:var(--faint)}
+.pos{color:var(--green)}.neg{color:var(--red)}.warn{color:var(--amber)}.offc{color:#d6d3d1}
+.toolbar{display:flex;gap:7px;margin-bottom:10px}
+.toolbar input{flex:1;min-width:0;padding:8px 11px;border:1px solid #d6d3d1;border-radius:6px;background:#fff}
+.btn{padding:8px 12px;border:1px solid #d6d3d1;background:#fff;border-radius:6px;font-size:14px}
+.btn.dark{background:var(--ink);color:#fff;border-color:var(--ink)}
+.card{background:#fff;border:1px solid var(--line);border-radius:6px;margin-bottom:8px;display:flex;overflow:hidden}
+.stripe{width:6px;flex:0 0 auto}
+.body{flex:1;min-width:0;padding:11px}
+.row1{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.who{flex:1;min-width:150px}
+.line{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.ono{font-size:12px;color:var(--faint)}
+.cname{font-weight:600}
+.bname{font-size:11px;color:var(--faint)}
+.chip{padding:1px 6px;border-radius:4px;font-size:10px;border:1px solid}
+.ig{background:#fdf2f8;color:#be185d;border-color:#fbcfe8}
+.th{background:#1c1917;color:#fff;border-color:#1c1917}
+.wa{background:#ecfdf5;color:#047857;border-color:#a7f3d0}
+.fr{background:#f0f9ff;color:#0369a1;border-color:#bae6fd}
+.ot{background:#f5f5f4;color:#57534e;border-color:#e7e5e4}
+.prog{font-size:12px;padding:1px 6px;border-radius:4px;border:1px solid}
+.prog.done{background:#ecfdf5;color:var(--green);border-color:#a7f3d0}
+.prog.wait{background:#fffbeb;color:var(--amber);border-color:#fde68a}
+.ipv{font-size:13px;color:#57534e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.money{text-align:right}
+.acts{display:flex;align-items:center;gap:4px}
+.pill{padding:4px 8px;border-radius:5px;font-size:12px;border:1px solid}
+.pill.paid{background:#ecfdf5;color:var(--green);border-color:#a7f3d0}
+.pill.unpaid{background:#fffbeb;color:var(--amber);border-color:#fde68a}
+.pill.ship{background:#f0f9ff;color:var(--sky);border-color:#bae6fd}
+.pill.noship{background:#fafaf9;color:var(--mute);border-color:var(--line)}
+.caret{padding:5px;color:var(--faint)}
+.detail{margin-top:11px;padding-top:11px;border-top:1px solid #f5f5f4}
+.dlabel{font-size:11px;color:var(--faint);margin-bottom:6px}
+.irow{display:flex;gap:6px;align-items:center;margin-bottom:5px}
+.ibtn{flex:1;min-width:0;display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:5px;border:1px solid;text-align:left;font-size:14px}
+.i-wait{background:#f5f5f4;color:var(--mute);border-color:var(--line)}
+.i-in{background:#ecfdf5;color:var(--green);border-color:#a7f3d0}
+.i-out{background:#fef2f2;color:var(--red);border-color:#fecaca;text-decoration:line-through}
+.iname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.inum{font-size:12px;opacity:.75}
+.refund{flex:0 0 auto;padding:6px 9px;border-radius:5px;font-size:12px;font-weight:500;background:var(--red);color:#fff;border:1px solid var(--red)}
+.refund.done{background:#f5f5f4;color:var(--mute);border-color:var(--line);font-weight:400}
+.alert{border-radius:5px;padding:8px 11px;font-size:13px;margin:8px 0}
+.alert.r{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c}
+.alert.a{background:#fffbeb;border:1px solid #fde68a;color:#92400e}
+.fields{display:grid;gap:4px;font-size:14px;margin-top:10px}
+@media(min-width:700px){.fields{grid-template-columns:1fr 1fr;column-gap:24px}}
+.f{display:flex;gap:8px}.fk{color:var(--faint);width:92px;flex:0 0 auto}
+.mini{padding:4px 9px;border:1px solid #d6d3d1;border-radius:5px;font-size:12px}
+.mini.del{border-color:#fecaca;color:var(--red)}
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:6px;font-size:14px}
+th{background:#fafaf9;color:var(--mute);font-size:11px;font-weight:500;text-align:right;padding:8px 10px}
+th:first-child{text-align:left}
+td{padding:8px 10px;text-align:right;border-top:1px solid #f5f5f4}
+td:first-child{text-align:left}
+tfoot td{border-top:2px solid var(--ink);background:#fafaf9;font-weight:600}
+.scroll{overflow-x:auto}
+.panel{background:#fff;border:1px solid var(--line);border-radius:6px;padding:12px;margin-top:14px}
+.panel h3{font-size:14px;margin-bottom:3px}
+.panel p{font-size:12px;color:var(--mute);margin-bottom:9px}
+.bcard{background:#fff;border:1px solid var(--line);border-radius:6px;padding:11px;margin-bottom:10px}
+.bhead{display:flex;align-items:center;gap:8px;margin-bottom:11px}
+.bhead input[type=color]{width:28px;height:28px;border:1px solid var(--line);border-radius:5px;padding:0}
+.bhead input[type=text]{font-weight:600;padding:4px 7px;border:1px solid transparent;border-radius:5px;background:none}
+.grid3{display:grid;gap:10px}
+@media(min-width:700px){.grid3{grid-template-columns:1fr 1fr 1fr}}
+.grid2{display:grid;gap:10px}
+@media(min-width:700px){.grid2{grid-template-columns:1fr 1fr}}
+.grid4{display:grid;gap:10px}
+@media(min-width:700px){.grid4{grid-template-columns:repeat(4,1fr)}}
+.fld label{display:block;font-size:11px;color:var(--mute);margin-bottom:3px}
+.fld input,.fld select{width:100%;padding:6px 8px;border:1px solid #d6d3d1;border-radius:5px;background:#fff}
+.fld input:focus,.fld select:focus{outline:none;border-color:var(--ink)}
+.hint{font-size:11px;color:var(--faint);margin-top:2px}
+.ro{padding:6px 8px;border:1px solid var(--line);background:#f5f5f4;border-radius:5px;color:#44403c}
+.dashed{width:100%;padding:9px;border:1px dashed #a8a29e;border-radius:6px;color:var(--mute);font-size:14px}
+.form{background:#fff;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.fhead{background:var(--ink);color:#fff;padding:11px 14px;display:flex;justify-content:space-between;align-items:center}
+.fbody{padding:14px;background:var(--paper);display:grid;gap:18px}
+.ffoot{background:var(--paper);border-top:1px solid var(--line);padding:11px;display:flex;gap:8px}
+.ffoot .btn{flex:1;text-align:center;padding:10px}
+.st{font-size:11px;font-weight:600;color:var(--mute);letter-spacing:.08em;display:flex;align-items:center;gap:7px;margin-bottom:9px}
+.st::before{content:"";width:3px;height:12px;background:var(--ink);border-radius:2px}
+.plats{display:flex;gap:4px;flex-wrap:wrap}
+.plats button{padding:6px 9px;border-radius:5px;font-size:12px;border:1px solid #d6d3d1;background:#fff;color:var(--mute)}
+.ed-row{display:flex;gap:5px;align-items:center;margin-bottom:6px}
+.ed-row .no{width:16px;font-size:11px;color:var(--faint);flex:0 0 auto}
+.ed-row .nm{flex:1;min-width:0;padding:6px 8px;border:1px solid #d6d3d1;border-radius:5px}
+.ed-row .qt{width:46px;padding:6px 4px;border:1px solid #d6d3d1;border-radius:5px;text-align:center}
+.ed-row .ck{width:86px;padding:6px 8px;border:1px solid #d6d3d1;border-radius:5px}
+.ed-row .ph{width:74px;padding:6px 8px;border:1px solid #d6d3d1;border-radius:5px}
+.ed-row select{padding:6px 3px;border-radius:5px;border:1px solid;flex:0 0 auto;font-size:12px}
+.ed-row .x{padding:5px;color:#d6d3d1;flex:0 0 auto}
+.ed-foot{display:flex;justify-content:space-between;align-items:center;margin-top:6px}
+.empty{border:1px dashed #d6d3d1;border-radius:6px;padding:36px;text-align:center;color:var(--mute);background:#fff;font-size:14px}
+.paypanel{background:#fff;border:2px solid var(--ink);border-radius:6px;padding:14px;margin-bottom:11px}
+.paygrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+@media(min-width:700px){.paygrid{grid-template-columns:repeat(4,1fr)}}
+.paygrid button{padding:10px;border:1px solid #d6d3d1;border-radius:5px;font-weight:500;background:#fff}
+.paygrid button:hover{background:var(--ink);color:#fff}
+.boot{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--mute)}
+</style>
+</head>
+<body>
+<header>
+  <div class="hwrap">
+    <span class="brand">📦 代購訂單簿</span>
+    <button class="sync load" id="syncbtn">☁ 載入中</button>
+    <div class="tabs" id="tabs">
+      <button data-tab="orders" class="on">訂單</button>
+      <button data-tab="stats">埋數</button>
+      <button data-tab="batches">轉次設定</button>
+    </div>
+  </div>
+</header>
+<main id="app"><div class="boot">☁ 連緊 Google Sheet…</div></main>
+
+<script>
+/* ============ 雲端設定 ============ */
+const API = "https://script.google.com/macros/s/AKfycbw0ZvZDPK51bLhE2mlxiI-jX-m2MPJ7qBdH8jaNHazv2h6tST4hEtKB1j9yL9xhKvfZRw/exec";
+const PW  = "jr7ek3cc6";
+const LOCAL = "daigou_local_v2";
+
+/* ============ 常數 ============ */
+const COLORS=["#E0504B","#E89B3C","#3D8A63","#2F6FB0","#8258A8","#C2508E","#5A6B7B","#7A8B2F"];
+const PLATFORMS=["IG","Threads","WhatsApp","朋友介紹","其他"];
+const PCLASS={IG:"ig",Threads:"th",WhatsApp:"wa","朋友介紹":"fr","其他":"ot"};
+const ISTATUS=["未到","已到","斷貨"];
+const ICLASS={"未到":"i-wait","已到":"i-in","斷貨":"i-out"};
+
+const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36);
+const blankItem=()=>({id:uid(),name:"",qty:1,costKRW:"",priceHKD:"",status:"未到",refunded:false});
+const blankOrder=b=>({id:uid(),batchId:b,orderNo:"",customer:"",platform:"IG",
+  itemList:[blankItem()],extraHKD:"",localShipHKD:"",payMethod:"未定",payTime:"",
+  payStatus:"未收",shipStatus:"未出",recvName:"",recvPhone:"",sfAddress:"",sfTracking:"",note:""});
+const defaultData=()=>({batches:[1,2,3,4,5].map((i,x)=>({id:"b"+i,name:"第"+i+"轉",
+  color:COLORS[x],rate:0.0058,intlShipHKD:"",alloc:"cost"})),orders:[]});
+
+/* ============ 狀態 ============ */
+let data=null, tab="orders", activeBatch="all", q="", openId=null, editing=null, paying=null;
+let sync="load", errMsg="", dirty=false;
+
+/* ============ 計數 ============ */
+const n=v=>{const x=parseFloat(v);return isNaN(x)?0:x};
+const hkd=v=>(v<0?"-$":"$")+Math.abs(v).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const krw=v=>"₩"+n(v).toLocaleString("en-US");
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const costKRW=o=>(o.itemList||[]).reduce((s,it)=>it.status==="斷貨"?s:s+n(it.costKRW)*(n(it.qty)||1),0);
+const revenue=o=>(o.itemList||[]).reduce((s,it)=>it.status==="斷貨"?s:s+n(it.priceHKD),0)+n(o.extraHKD);
+const gross=o=>(o.itemList||[]).reduce((s,it)=>s+n(it.priceHKD),0)+n(o.extraHKD);
+const refundDue=o=>(o.itemList||[]).reduce((s,it)=>(it.status==="斷貨"&&!it.refunded)?s+n(it.priceHKD):s,0);
+const realItems=o=>(o.itemList||[]).filter(it=>it.name||it.costKRW||it.priceHKD);
+const names=o=>realItems(o).map(it=>it.name).filter(Boolean).join("、")||"—";
+const batch=id=>data.batches.find(b=>b.id===id);
+function progress(o){const l=realItems(o),live=l.filter(it=>it.status!=="斷貨");
+  const a=live.filter(it=>it.status==="已到").length;
+  return{total:l.length,live:live.length,arrived:a,out:l.length-live.length,allIn:live.length>0&&a===live.length}}
+
+function calcAll(){
+  const m={};
+  data.batches.forEach(b=>{
+    const list=data.orders.filter(o=>o.batchId===b.id);
+    const intl=n(b.intlShipHKD);
+    const tot=list.reduce((s,o)=>s+costKRW(o)*n(b.rate),0);
+    list.forEach(o=>{
+      const cost=costKRW(o)*n(b.rate);
+      let share=0;
+      if(b.alloc==="even"&&list.length) share=intl/list.length;
+      else if(b.alloc==="cost"&&tot>0) share=(cost/tot)*intl;
+      const local=n(o.localShipHKD), rev=revenue(o);
+      m[o.id]={cost,share,local,rev,profit:rev-cost-share-local};
+    });
+  });
+  return m;
+}
+function sum(list,C){
+  return list.reduce((a,o)=>{
+    const c=C[o.id]||{};
+    a.rev+=c.rev||0;a.cost+=c.cost||0;a.ship+=(c.share||0)+(c.local||0);
+    a.profit+=c.profit||0;a.refund+=refundDue(o);
+    if(o.payStatus!=="已收"){a.unpaid++;a.owed+=gross(o)}
+    if(o.shipStatus!=="已出")a.unshipped++;
+    return a;
+  },{rev:0,cost:0,ship:0,profit:0,refund:0,unpaid:0,unshipped:0,owed:0});
+}
+
+/* ============ 雲端 ============ */
+async function cloudLoad(){
+  const r=await fetch(`${API}?action=load&pw=${encodeURIComponent(PW)}`);
+  const j=await r.json();
+  if(j.error) throw new Error(j.error);
+  return j.data?JSON.parse(j.data):null;
+}
+async function cloudSave(d){
+  const r=await fetch(`${API}?action=save&pw=${encodeURIComponent(PW)}`,{
+    method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(d)});
+  const j=await r.json();
+  if(j.error) throw new Error(j.error);
+  return true;
+}
+/* 儲存前守門：如果將要寫入嘅單，比雲端少一大截，就攔住問人 */
+async function safeSave(d){
+  let cloudN=-1;
+  try{
+    const c=await cloudLoad();
+    cloudN = c && c.orders ? c.orders.length : 0;
+  }catch(_){ cloudN=-1; }  // 讀唔到雲端就照舊儲存（唔攔）
+  const localN = d.orders ? d.orders.length : 0;
+  if(cloudN>0 && localN < cloudN - 2){
+    const go = confirm(
+      `⚠️ 停一停！\n\n你而家部機得 ${localN} 張單，\n但雲端 Sheet 有 ${cloudN} 張。\n\n如果繼續，雲端嗰 ${cloudN} 張會被覆蓋！\n\n除非你真係想刪單，否則請撳「取消」，\n然後撳頂部「☁」由雲端拉返最新落嚟。\n\n仍然要覆蓋？`);
+    if(!go){ throw new Error("已取消覆蓋，保住雲端資料"); }
+  }
+  return cloudSave(d);
+}
+async function boot(){
+  const raw=localStorage.getItem(LOCAL);
+  const localData = raw ? JSON.parse(raw) : null;
+  const localN = localData && localData.orders ? localData.orders.length : 0;
+  try{
+    const d=await cloudLoad();
+    const cloudN = d && d.orders ? d.orders.length : 0;
+    // 雲端係空/少過本機一大截，但本機有嘢 → 用本機，唔好被空雲端蓋
+    if(localN > 0 && cloudN < localN - 2){
+      data=localData; sync="off";
+      errMsg=`⚠️ 雲端得 ${cloudN} 張，但你部機有 ${localN} 張未上傳。已保住你部機嘅資料，唔會被覆蓋。撳「重新同步」上傳。`;
+    } else {
+      data=d||defaultData(); sync="ok";
+      localStorage.setItem(LOCAL,JSON.stringify(data));
+    }
+  }catch(e){
+    if(localData){ data=localData; sync="off"; errMsg="連唔到雲端，用緊本機暫存。有返網撳「重新同步」。"; }
+    else { data=defaultData(); sync="err"; errMsg=String(e.message||e); }
+  }
+  render();
+}
+async function persist(){
+  dirty=true;
+  try{ localStorage.setItem(LOCAL,JSON.stringify(data)); }catch(_){}  // 一定先寫本機底
+  sync="save"; render();
+  try{ await safeSave(data); dirty=false; sync="ok"; errMsg=""; }
+  catch(e){ sync="off"; errMsg=(""+e.message).includes("取消覆蓋")?"已保住雲端資料，冇覆蓋。撳頂部「☁」由雲端拉返最新。":"上傳唔到雲端，資料暫存咗喺本機（唔會唔見）。有返網撳「重新同步」。"; }
+  render();
+}
+async function retry(){
+  sync="save"; render();
+  try{ await safeSave(data); dirty=false; sync="ok"; errMsg=""; }
+  catch(e){ sync="off"; errMsg=(""+e.message).includes("取消覆蓋")?"已保住雲端資料，冇覆蓋。":"仲係連唔到。檢查下網絡。"; }
+  render();
+}
+async function pull(){
+  if(dirty && !confirm("本機有未上傳嘅改動，重新載入會蓋咗佢。繼續？")) return;
+  sync="load"; render();
+  try{
+    const d=await cloudLoad();
+    data=d||defaultData();
+    localStorage.setItem(LOCAL,JSON.stringify(data));
+    sync="ok"; errMsg="";
+  }catch(e){ sync="err"; errMsg=String(e.message||e); }
+  render();
+}
+
+/* ============ 畫面 ============ */
+function render(){
+  const C=calcAll();
+  const sb=document.getElementById("syncbtn");
+  const S={load:["load","☁ 載入中"],save:["load","☁ 儲存中"],ok:["ok","☁ 已同步"],
+           off:["off","⚠ 離線"],err:["err","✕ 出事"]}[sync];
+  sb.className="sync "+S[0]; sb.textContent=S[1];
+  document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.tab===tab));
+
+  const banner=(sync==="off"||sync==="err")&&errMsg
+    ? `<div class="alert a">${esc(errMsg)}<br><button class="mini" id="retry" style="margin-top:6px">↻ 重新同步</button></div>`:"";
+
+  document.getElementById("app").innerHTML = banner + (
+    editing ? viewForm()
+    : tab==="orders" ? viewOrders(C)
+    : tab==="stats" ? viewStats(C)
+    : viewBatches());
+}
+function statBox(k,v,cls,s){return `<div class="stat"><div class="k">${k}</div><div class="v mono ${cls||""}">${v}</div>${s?`<div class="s">${s}</div>`:""}</div>`}
+
+function viewOrders(C){
+  const shown=data.orders.filter(o=>{
+    if(activeBatch!=="all"&&o.batchId!==activeBatch) return false;
+    if(!q.trim()) return true;
+    return [o.orderNo,o.customer,o.platform,names(o),o.recvName,o.recvPhone,o.sfTracking]
+      .join(" ").toLowerCase().includes(q.toLowerCase());
+  });
+  const s=sum(shown,C);
+  const tabs=`<button class="btab ${activeBatch==="all"?"on":""}" data-b="all" style="border-bottom-color:${activeBatch==="all"?"#57534e":"transparent"}">
+      <span class="dot" style="background:#57534e"></span>全部 <span class="mono" style="font-size:12px;color:#a8a29e">${data.orders.length}</span></button>`
+    + data.batches.map(b=>`<button class="btab ${activeBatch===b.id?"on":""}" data-b="${b.id}" style="border-bottom-color:${activeBatch===b.id?b.color:"transparent"}">
+      <span class="dot" style="background:${b.color}"></span>${esc(b.name)}
+      <span class="mono" style="font-size:12px;color:#a8a29e">${data.orders.filter(o=>o.batchId===b.id).length}</span></button>`).join("");
+
+  return `<div class="batchbar">${tabs}</div>
+  <div class="stats">
+    ${statBox("實收（扣斷貨）",hkd(s.rev))}
+    ${statBox("成本＋運費",hkd(s.cost+s.ship))}
+    ${statBox("實賺",hkd(s.profit),s.profit>=0?"pos":"neg")}
+    ${statBox("未收數",hkd(s.owed),s.owed>0?"warn":"",`${s.unpaid} 張未收 · ${s.unshipped} 張未出`)}
+    ${statBox("要退返畀客",hkd(s.refund),s.refund>0?"neg":"offc",s.refund>0?"斷貨未退":"冇嘢要退")}
+  </div>
+  ${paying?payPanel(paying):""}
+  <div class="toolbar">
+    <input id="search" placeholder="搵訂單編號、客人、貨品、電話、運單號…" value="${esc(q)}">
+    <button class="btn dark" id="add">＋ 加單</button>
+  </div>
+  ${shown.length===0?`<div class="empty">呢度未有單。撳「＋ 加單」開始。</div>`:shown.map(o=>card(o,C[o.id]||{})).join("")}`;
+}
+
+function payPanel(o){
+  const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
+  const now=d.toISOString().slice(0,16);
+  return `<div class="paypanel">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <b>收咗數？</b><button id="paycancel" style="color:#a8a29e">✕</button></div>
+    <p style="font-size:13px;color:#78716c;margin:4px 0 10px">
+      ${esc(o.customer||o.orderNo)} · 應收 <b class="mono" style="color:#1c1917">${hkd(gross(o))}</b></p>
+    <div class="fld" style="margin-bottom:10px"><label>入數時間</label>
+      <input class="mono" type="datetime-local" id="paytime" value="${now}"></div>
+    <label style="font-size:11px;color:#78716c;display:block;margin-bottom:6px">佢用咩入數？</label>
+    <div class="paygrid">
+      ${["FPS","PayMe","現金","其他"].map(m=>`<button data-paym="${m}">${m}</button>`).join("")}
+    </div></div>`;
+}
+
+function card(o,c){
+  const b=batch(o.batchId)||{color:"#ccc",name:""};
+  const p=progress(o), rd=refundDue(o), open=openId===o.id;
+  const paid=o.payStatus==="已收", shipped=o.shipStatus==="已出";
+  const items=realItems(o).map(it=>`
+    <div class="irow">
+      <button class="ibtn ${ICLASS[it.status]}" data-cycle="${o.id}|${it.id}">
+        <span>${it.status==="已到"?"✓":it.status==="斷貨"?"✕":"○"}</span>
+        <span class="iname">${esc(it.name)||"（未填）"}</span>
+        ${n(it.qty)>1?`<span class="inum mono">x${it.qty}</span>`:""}
+        <span class="inum mono">${krw(it.costKRW)} → ${hkd(n(it.priceHKD))}</span>
+      </button>
+      ${it.status==="斷貨"?`<button class="refund ${it.refunded?"done":""}" data-refund="${o.id}|${it.id}">${it.refunded?"已退款":"退 "+hkd(n(it.priceHKD))}</button>`:""}
+    </div>`).join("");
+
+  return `<div class="card">
+    <div class="stripe" style="background:${b.color}"></div>
+    <div class="body">
+      <div class="row1">
+        <div class="who">
+          <div class="line">
+            <span class="ono mono">${esc(o.orderNo)||"—"}</span>
+            <span class="cname">${esc(o.customer)||"（未填客人）"}</span>
+            ${o.platform?`<span class="chip ${PCLASS[o.platform]||"ot"}">${o.platform}</span>`:""}
+            <span class="bname">${esc(b.name)}</span>
+          </div>
+          <div class="line" style="margin-top:3px">
+            <span class="prog mono ${p.allIn?"done":"wait"}">${p.arrived}/${p.live} 到貨${p.out?" · "+p.out+" 斷":""}</span>
+            <span class="ipv">${esc(names(o))}</span>
+          </div>
+        </div>
+        <div class="money mono">
+          <div style="font-size:14px">${hkd(revenue(o))}</div>
+          <div style="font-size:12px;font-weight:600" class="${(c.profit??0)>=0?"pos":"neg"}">賺 ${hkd(c.profit??0)}</div>
+          ${rd>0?`<div style="font-size:11px" class="neg">退返 ${hkd(rd)}</div>`:""}
+        </div>
+        <div class="acts">
+          <button class="pill ${paid?"paid":"unpaid"}" data-pay="${o.id}">${paid?"已收":"未收"}</button>
+          <button class="pill ${shipped?"ship":"noship"}" data-ship="${o.id}">${shipped?"已出":"未出"}</button>
+          <button class="caret" data-open="${o.id}">${open?"▲":"▼"}</button>
+        </div>
+      </div>
+      ${open?`<div class="detail">
+        <div class="dlabel">訂購項目（撳一下轉：未到 → 已到 → 斷貨）</div>
+        ${items||`<div class="dlabel">未有項目</div>`}
+        ${rd>0?`<div class="alert r">仲欠客人 <b class="mono">${hkd(rd)}</b>（斷貨未退）。退咗錢就撳上面個紅掣。</div>`:""}
+        <div class="fields">
+          <div class="f"><span class="fk">客人原本畀</span><span class="mono">${hkd(gross(o))}</span></div>
+          <div class="f"><span class="fk">實收</span><span class="mono">${hkd(revenue(o))}</span></div>
+          <div class="f"><span class="fk">韓幣成本</span><span class="mono">${krw(costKRW(o))} → ${hkd(c.cost??0)}</span></div>
+          <div class="f"><span class="fk">分攤國際運費</span><span class="mono">${hkd(c.share??0)}</span></div>
+          <div class="f"><span class="fk">本地SF運費</span><span class="mono">${hkd(c.local??0)}</span></div>
+          <div class="f"><span class="fk">入數</span><span>${o.payMethod==="未定"&&paid?'<span class="warn">未填入數方法 ⚠️</span>':esc(o.payMethod)+" "+(esc(o.payTime)||"—")}</span></div>
+          <div class="f"><span class="fk">收件人</span><span>${esc(o.recvName)||"—"} ${esc(o.recvPhone)}</span></div>
+          <div class="f"><span class="fk">SF地址</span><span>${esc(o.sfAddress)||"—"}</span></div>
+          <div class="f"><span class="fk">SF運單號</span><span class="mono">${esc(o.sfTracking)||"—"}</span></div>
+          ${o.note?`<div class="f"><span class="fk">備註</span><span>${esc(o.note)}</span></div>`:""}
+        </div>
+        <div style="display:flex;gap:7px;margin-top:11px">
+          <button class="mini" data-edit="${o.id}">✎ 改</button>
+          <button class="mini del" data-del="${o.id}">🗑 刪除</button>
+        </div></div>`:""}
+    </div></div>`;
+}
+
+function viewStats(C){
+  const all=sum(data.orders,C);
+  const rows=data.batches.map(b=>{
+    const list=data.orders.filter(o=>o.batchId===b.id), s=sum(list,C);
+    return `<tr>
+      <td><span class="dot" style="background:${b.color};display:inline-block;margin-right:7px"></span>${esc(b.name)}</td>
+      <td class="mono" style="color:#78716c">${list.length}</td>
+      <td class="mono">${hkd(s.rev)}</td>
+      <td class="mono" style="color:#78716c">${hkd(s.cost)}</td>
+      <td class="mono" style="color:#78716c">${hkd(s.ship)}</td>
+      <td class="mono ${s.profit>=0?"pos":"neg"}" style="font-weight:600">${hkd(s.profit)}</td>
+      <td class="mono" style="color:#78716c">${s.rev?(s.profit/s.rev*100).toFixed(1)+"%":"—"}</td></tr>`;
+  }).join("");
+
+  return `<div class="stats four">
+    ${statBox("總實收",hkd(all.rev))}
+    ${statBox("貨品成本",hkd(all.cost))}
+    ${statBox("運費（國際＋本地）",hkd(all.ship))}
+    ${statBox("扣晒運費後實賺",hkd(all.profit),all.profit>=0?"pos":"neg")}
+  </div>
+  <div class="scroll"><table>
+    <thead><tr><th>轉次</th><th>單數</th><th>實收</th><th>成本</th><th>運費</th><th>實賺</th><th>邊際</th></tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr><td>合共</td><td class="mono">${data.orders.length}</td>
+      <td class="mono">${hkd(all.rev)}</td><td class="mono">${hkd(all.cost)}</td>
+      <td class="mono">${hkd(all.ship)}</td>
+      <td class="mono ${all.profit>=0?"pos":"neg"}">${hkd(all.profit)}</td>
+      <td class="mono">${all.rev?(all.profit/all.rev*100).toFixed(1)+"%":"—"}</td></tr></tfoot>
+  </table></div>
+  ${all.refund>0?`<div class="alert r">有 <b class="mono">${hkd(all.refund)}</b> 斷貨錢未退返畀客。呢筆錢喺你手，但唔係你嘅。</div>`:""}
+  ${all.owed>0?`<div class="alert a">仲有 <b class="mono">${hkd(all.owed)}</b> 未收（${all.unpaid} 張單）。</div>`:""}
+  <div class="panel">
+    <h3>資料喺邊</h3>
+    <p>所有單存喺你自己個 Google Sheet（Orders 分頁）。電腦電話開同一條網址就係同一份資料。</p>
+    <div style="display:flex;gap:7px;flex-wrap:wrap">
+      <button class="btn" id="pull">↻ 由 Sheet 重新載入</button>
+      <button class="btn" id="csv">⬇ 下載 CSV</button>
+    </div>
+  </div>`;
+}
+
+function viewBatches(){
+  return `<p style="font-size:14px;color:#57534e;margin-bottom:12px">每轉填返匯率同國際運費總額，app 會自動分攤落每張單度計實賺。</p>`
+  + data.batches.map(b=>{
+    const cnt=data.orders.filter(o=>o.batchId===b.id).length;
+    return `<div class="bcard">
+      <div class="bhead">
+        <input type="color" value="${b.color}" data-bc="${b.id}">
+        <input type="text" value="${esc(b.name)}" data-bn="${b.id}">
+        <span class="mono" style="font-size:12px;color:#a8a29e">${cnt} 張單</span>
+        <button style="margin-left:auto;color:#d6d3d1" data-bdel="${b.id}">🗑</button>
+      </div>
+      <div class="grid3">
+        <div class="fld"><label>匯率（1 韓圜 = 幾多港紙）</label>
+          <input class="mono" type="number" step="0.0001" value="${b.rate}" data-br="${b.id}">
+          <div class="hint mono">₩10,000 ≈ ${hkd(10000*n(b.rate))}</div></div>
+        <div class="fld"><label>國際運費總額（HKD）</label>
+          <input class="mono" type="number" value="${b.intlShipHKD}" data-bs="${b.id}">
+          <div class="hint">韓國寄返香港嗰筆</div></div>
+        <div class="fld"><label>運費點分攤</label>
+          <select data-ba="${b.id}">
+            <option value="cost" ${b.alloc==="cost"?"selected":""}>按貨值比例分</option>
+            <option value="even" ${b.alloc==="even"?"selected":""}>平均分（每單夾一份）</option>
+            <option value="none" ${b.alloc==="none"?"selected":""}>唔分攤</option>
+          </select></div>
+      </div></div>`;
+  }).join("")
+  + `<button class="dashed" id="addbatch">＋ 開新一轉</button>`;
+}
+
+function viewForm(){
+  const f=editing, b=batch(f.batchId)||{rate:0};
+  const cost=costKRW(f)*n(b.rate), rd=refundDue(f);
+  const rough=revenue(f)-cost-n(f.localShipHKD);
+  const items=(f.itemList||[]).map((it,i)=>`
+    <div class="ed-row">
+      <span class="no mono">${i+1}</span>
+      <input class="nm" placeholder="貨品名" value="${esc(it.name)}" data-i="${it.id}" data-k="name">
+      <input class="qt mono" type="number" min="1" value="${it.qty}" data-i="${it.id}" data-k="qty">
+      <input class="ck mono" type="number" placeholder="成本₩" value="${it.costKRW}" data-i="${it.id}" data-k="costKRW">
+      <input class="ph mono" type="number" placeholder="收$" value="${it.priceHKD}" data-i="${it.id}" data-k="priceHKD">
+      <select class="${ICLASS[it.status]}" data-i="${it.id}" data-k="status">
+        ${ISTATUS.map(s=>`<option ${it.status===s?"selected":""}>${s}</option>`).join("")}</select>
+      ${it.status==="斷貨"?`<button class="refund ${it.refunded?"done":""}" style="padding:5px 7px" data-iref="${it.id}">${it.refunded?"已退":"待退"}</button>`:""}
+      <button class="x" data-irm="${it.id}">✕</button>
+    </div>`).join("");
+
+  return `<div class="form">
+    <div class="fhead"><b>${f.customer||f.orderNo?"改單":"新訂單"}</b>
+      <button id="fclose" style="color:#a8a29e">✕ 返回</button></div>
+    <div class="fbody">
+      <div><div class="st">基本</div>
+        <div class="grid2">
+          <div class="fld"><label>轉次</label><select data-f="batchId">
+            ${data.batches.map(x=>`<option value="${x.id}" ${x.id===f.batchId?"selected":""}>${esc(x.name)}</option>`).join("")}</select></div>
+          <div class="fld"><label>訂單編號</label><input class="mono" data-f="orderNo" value="${esc(f.orderNo)}"></div>
+        </div>
+        <div class="grid2" style="margin-top:10px">
+          <div class="fld"><label>客人名</label><input data-f="customer" value="${esc(f.customer)}"></div>
+          <div class="fld"><label>客人平台</label><div class="plats">
+            ${PLATFORMS.map(p=>`<button data-plat="${p}" class="${f.platform===p?"chip "+PCLASS[p]:""}">${p}</button>`).join("")}
+          </div></div>
+        </div>
+        <div style="margin-top:13px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+            <label style="font-size:11px;color:#78716c">訂購項目（一件一行，每件獨立 mark 到貨／退款）</label>
+            <span class="mono" style="font-size:11px;color:#a8a29e">共 ${realItems(f).length} 件</span></div>
+          ${items}
+          <div class="ed-foot">
+            <button class="mini" id="additem">＋ 加多件</button>
+            <span class="mono" style="font-size:12px;color:#78716c">成本 ${krw(costKRW(f))} · 收客 ${hkd(revenue(f)-n(f.extraHKD))}</span>
+          </div>
+        </div>
+      </div>
+
+      <div><div class="st">銀碼</div>
+        <div class="grid4">
+          <div class="fld"><label>韓幣成本（自動）</label><div class="ro mono">${krw(costKRW(f))}</div>
+            <div class="hint mono">≈ ${hkd(cost)}</div></div>
+          <div class="fld"><label>額外收費 HKD</label><input class="mono" type="number" data-f="extraHKD" value="${f.extraHKD}">
+            <div class="hint">服務費／收客人嘅運費</div></div>
+          <div class="fld"><label>實收客人（自動）</label><div class="ro mono">${hkd(revenue(f))}</div>
+            <div class="hint mono">原本 ${hkd(gross(f))}</div></div>
+          <div class="fld"><label>本地 SF 運費 HKD</label><input class="mono" type="number" data-f="localShipHKD" value="${f.localShipHKD}">
+            <div class="hint">你自己畀嗰筆先填</div></div>
+        </div>
+        ${rd>0?`<div class="alert r">有 ${hkd(rd)} 要退返畀客（斷貨）。退咗就撳嗰行「待退」。</div>`:""}
+        <div style="font-size:12px;color:#78716c;background:#fff;border:1px solid var(--line);border-radius:5px;padding:7px 10px;margin-top:9px" class="mono">
+          未計分攤國際運費：${hkd(rough)}</div>
+      </div>
+
+      <div><div class="st">收數</div>
+        <div class="grid3">
+          <div class="fld"><label>入數方法</label><select data-f="payMethod">
+            ${["未定","FPS","PayMe","現金","其他"].map(x=>`<option ${f.payMethod===x?"selected":""}>${x}</option>`).join("")}</select></div>
+          <div class="fld"><label>入數時間</label><input class="mono" type="datetime-local" data-f="payTime" value="${f.payTime}"></div>
+          <div class="fld"><label>付款狀態</label><select data-f="payStatus">
+            ${["未收","已收","已退款"].map(x=>`<option ${f.payStatus===x?"selected":""}>${x}</option>`).join("")}</select></div>
+        </div>
+      </div>
+
+      <div><div class="st">寄件</div>
+        <div class="grid3">
+          <div class="fld"><label>收件人姓名 ${f.customer&&f.recvName!==f.customer?`<button id="same" style="float:right;font-size:11px;text-decoration:underline;color:#78716c">同客人名</button>`:""}</label>
+            <input data-f="recvName" value="${esc(f.recvName)}"></div>
+          <div class="fld"><label>電話</label><input class="mono" data-f="recvPhone" value="${esc(f.recvPhone)}"></div>
+          <div class="fld"><label>發貨狀態</label><select data-f="shipStatus">
+            ${["未出","已出","已收貨"].map(x=>`<option ${f.shipStatus===x?"selected":""}>${x}</option>`).join("")}</select></div>
+        </div>
+        <div class="fld" style="margin-top:10px"><label>SF 地址 / 順豐站</label><input data-f="sfAddress" value="${esc(f.sfAddress)}"></div>
+        <div class="fld" style="margin-top:10px"><label>SF 運單號</label><input class="mono" data-f="sfTracking" value="${esc(f.sfTracking)}"></div>
+        <div class="fld" style="margin-top:10px"><label>備註</label><input data-f="note" value="${esc(f.note)}"></div>
+      </div>
+    </div>
+    <div class="ffoot">
+      <button class="btn" id="fcancel">取消</button>
+      <button class="btn dark" id="fsave">儲存訂單</button>
+    </div></div>`;
+}
+
+/* ============ CSV ============ */
+function exportCSV(){
+  const C=calcAll();
+  const head=["轉次","訂單編號","客人名","平台","訂購項目","件數","已到","斷貨","客人原本畀","應退返","實收",
+    "韓幣成本","匯率","成本HKD","分攤國際運費","本地運費","實賺","額外收費","入數方法","入數時間",
+    "付款狀態","發貨狀態","收件人","電話","SF地址","SF運單號","備註"];
+  const rows=data.orders.map(o=>{
+    const b=batch(o.batchId)||{},c=C[o.id]||{},p=progress(o);
+    const d=realItems(o).map(it=>`${it.name} x${it.qty||1} 成本₩${n(it.costKRW)} 收$${n(it.priceHKD)} [${it.status}${it.status==="斷貨"?(it.refunded?"·已退":"·待退"):""}]`).join(" | ");
+    return [b.name,o.orderNo,o.customer,o.platform,d,p.total,p.arrived,p.out,
+      gross(o).toFixed(2),refundDue(o).toFixed(2),revenue(o).toFixed(2),costKRW(o),b.rate,
+      (c.cost||0).toFixed(2),(c.share||0).toFixed(2),o.localShipHKD,(c.profit||0).toFixed(2),
+      o.extraHKD,o.payMethod,o.payTime,o.payStatus,o.shipStatus,o.recvName,o.recvPhone,
+      o.sfAddress,o.sfTracking,o.note].map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(",");
+  });
+  const blob=new Blob(["\uFEFF"+[head.join(","),...rows].join("\n")],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`代購訂單_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+/* ============ 事件 ============ */
+document.getElementById("tabs").onclick=e=>{
+  const b=e.target.closest("button[data-tab]");
+  if(b){tab=b.dataset.tab;openId=null;editing=null;paying=null;render()}
+};
+document.getElementById("syncbtn").onclick=()=>sync==="ok"?pull():retry();
+
+document.getElementById("app").addEventListener("click",e=>{
+  const t=e.target;
+  if(t.closest("#retry")) return retry();
+  if(t.closest("#pull")) return pull();
+  if(t.closest("#csv")) return exportCSV();
+
+  const bt=t.closest("[data-b]"); if(bt){activeBatch=bt.dataset.b;return render()}
+  if(t.closest("#add")){editing=blankOrder(activeBatch==="all"?data.batches[0].id:activeBatch);window.scrollTo(0,0);return render()}
+  const op=t.closest("[data-open]"); if(op){openId=openId===op.dataset.open?null:op.dataset.open;return render()}
+
+  const py=t.closest("[data-pay]"); if(py){
+    const o=data.orders.find(x=>x.id===py.dataset.pay);
+    if(o.payStatus==="已收"){o.payStatus="未收";return persist()}
+    paying=o; return render();
+  }
+  if(t.closest("#paycancel")){paying=null;return render()}
+  const pm=t.closest("[data-paym]"); if(pm){
+    const time=document.getElementById("paytime").value;
+    paying.payStatus="已收"; paying.payMethod=pm.dataset.paym; paying.payTime=time;
+    paying=null; return persist();
+  }
+  const sh=t.closest("[data-ship]"); if(sh){
+    const o=data.orders.find(x=>x.id===sh.dataset.ship);
+    o.shipStatus=o.shipStatus==="已出"?"未出":"已出"; return persist();
+  }
+  const cy=t.closest("[data-cycle]"); if(cy){
+    const [oid,iid]=cy.dataset.cycle.split("|");
+    const it=data.orders.find(x=>x.id===oid).itemList.find(x=>x.id===iid);
+    it.status=ISTATUS[(ISTATUS.indexOf(it.status)+1)%3]; return persist();
+  }
+  const rf=t.closest("[data-refund]"); if(rf){
+    const [oid,iid]=rf.dataset.refund.split("|");
+    const it=data.orders.find(x=>x.id===oid).itemList.find(x=>x.id===iid);
+    it.refunded=!it.refunded; return persist();
+  }
+  const ed=t.closest("[data-edit]"); if(ed){
+    editing=JSON.parse(JSON.stringify(data.orders.find(x=>x.id===ed.dataset.edit)));
+    window.scrollTo(0,0); return render();
+  }
+  const dl=t.closest("[data-del]"); if(dl){
+    const o=data.orders.find(x=>x.id===dl.dataset.del);
+    if(confirm(`刪咗「${o.customer||o.orderNo}」呢張單？`)){
+      data.orders=data.orders.filter(x=>x.id!==o.id); return persist();
+    } return;
+  }
+  const bd=t.closest("[data-bdel]"); if(bd){
+    const b=batch(bd.dataset.bdel);
+    const cnt=data.orders.filter(o=>o.batchId===b.id).length;
+    if(confirm(`刪咗「${b.name}」？入面 ${cnt} 張單都會冇咗。`)){
+      data.batches=data.batches.filter(x=>x.id!==b.id);
+      data.orders=data.orders.filter(o=>o.batchId!==b.id);
+      return persist();
+    } return;
+  }
+  if(t.closest("#addbatch")){
+    const i=data.batches.length;
+    data.batches.push({id:uid(),name:`第${i+1}轉`,color:COLORS[i%COLORS.length],
+      rate:data.batches[i-1]?.rate||0.0058,intlShipHKD:"",alloc:"cost"});
+    return persist();
+  }
+
+  /* 表單 */
+  if(t.closest("#fclose")||t.closest("#fcancel")){editing=null;return render()}
+  const pl=t.closest("[data-plat]"); if(pl){editing.platform=pl.dataset.plat;return render()}
+  if(t.closest("#additem")){editing.itemList.push(blankItem());return render()}
+  const rm=t.closest("[data-irm]"); if(rm){
+    if(editing.itemList.length>1) editing.itemList=editing.itemList.filter(x=>x.id!==rm.dataset.irm);
+    return render();
+  }
+  const ir=t.closest("[data-iref]"); if(ir){
+    const it=editing.itemList.find(x=>x.id===ir.dataset.iref); it.refunded=!it.refunded; return render();
+  }
+  if(t.closest("#same")){editing.recvName=editing.customer;return render()}
+  if(t.closest("#fsave")){
+    const i=data.orders.findIndex(x=>x.id===editing.id);
+    if(i>=0) data.orders[i]=editing; else data.orders.push(editing);
+    editing=null; window.scrollTo(0,0); return persist();
+  }
+});
+
+document.getElementById("app").addEventListener("input",e=>{
+  const t=e.target;
+  if(t.id==="search"){q=t.value;const p=t.selectionStart;render();
+    const s=document.getElementById("search");if(s){s.focus();s.setSelectionRange(p,p)}return}
+  if(t.dataset.f){editing[t.dataset.f]=t.value;return}
+  if(t.dataset.i){editing.itemList.find(x=>x.id===t.dataset.i)[t.dataset.k]=t.value;return}
+  const m={bc:"color",bn:"name",br:"rate",bs:"intlShipHKD"};
+  for(const k in m){ if(t.dataset[k]){ batch(t.dataset[k])[m[k]]=t.value; return; } }
+});
+let saveTimer=null;
+document.getElementById("app").addEventListener("change",e=>{
+  const t=e.target;
+  if(t.dataset.k==="status"){
+    editing.itemList.find(x=>x.id===t.dataset.i).status=t.value; return render();
+  }
+  if(t.dataset.f==="batchId"){editing.batchId=t.value;return render()}
+  if(t.dataset.ba){batch(t.dataset.ba).alloc=t.value;return persist()}
+  if(t.dataset.bc||t.dataset.bn||t.dataset.br||t.dataset.bs){
+    clearTimeout(saveTimer); saveTimer=setTimeout(persist,400); return;
+  }
+});
+
+window.addEventListener("beforeunload", (e)=>{
+  if(dirty){ e.preventDefault(); e.returnValue=""; }
+});
+
+boot();
+</script>
+</body>
+</html>
