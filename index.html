@@ -159,8 +159,17 @@ tfoot td{border-top:2px solid var(--ink);background:#fafaf9;font-weight:600}
 <script>
 /* ============ 雲端設定 ============ */
 const API = "https://script.google.com/macros/s/AKfycbw0ZvZDPK51bLhE2mlxiI-jX-m2MPJ7qBdH8jaNHazv2h6tST4hEtKB1j9yL9xhKvfZRw/exec";
-const PW  = "jr7ek3cc6";
 const LOCAL = "daigou_local_v2";
+const PW_KEY = "daigou_pw";
+function getPW(){
+  let p = localStorage.getItem(PW_KEY);
+  if(!p){
+    p = (prompt("第一次用，請輸入你嘅密碼\\n（同 Google Sheet 嘅 Apps Script 入面設嘅密碼一樣）：")||"").trim();
+    if(p) localStorage.setItem(PW_KEY, p);
+  }
+  return p || "";
+}
+function forgetPW(){ localStorage.removeItem(PW_KEY); }
 
 /* ============ 常數 ============ */
 const COLORS=["#E0504B","#E89B3C","#3D8A63","#2F6FB0","#8258A8","#C2508E","#5A6B7B","#7A8B2F"];
@@ -227,42 +236,69 @@ function sum(list,C){
 
 /* ============ 雲端 ============ */
 async function cloudLoad(){
-  const r=await fetch(`${API}?action=load&pw=${encodeURIComponent(PW)}`);
+  const r=await fetch(`${API}?action=load&pw=${encodeURIComponent(getPW())}`);
   const j=await r.json();
-  if(j.error) throw new Error(j.error);
+  if(j.error){ if((""+j.error).includes("密碼")) forgetPW(); throw new Error(j.error); }
   return j.data?JSON.parse(j.data):null;
 }
 async function cloudSave(d){
-  const r=await fetch(`${API}?action=save&pw=${encodeURIComponent(PW)}`,{
+  const r=await fetch(`${API}?action=save&pw=${encodeURIComponent(getPW())}`,{
     method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(d)});
   const j=await r.json();
-  if(j.error) throw new Error(j.error);
+  if(j.error){ if((""+j.error).includes("密碼")) forgetPW(); throw new Error(j.error); }
   return true;
 }
+/* 儲存前守門：如果將要寫入嘅單，比雲端少一大截，就攔住問人 */
+async function safeSave(d){
+  let cloudN=-1;
+  try{
+    const c=await cloudLoad();
+    cloudN = c && c.orders ? c.orders.length : 0;
+  }catch(_){ cloudN=-1; }  // 讀唔到雲端就照舊儲存（唔攔）
+  const localN = d.orders ? d.orders.length : 0;
+  if(cloudN>0 && localN < cloudN - 2){
+    const go = confirm(
+      `⚠️ 停一停！\n\n你而家部機得 ${localN} 張單，\n但雲端 Sheet 有 ${cloudN} 張。\n\n如果繼續，雲端嗰 ${cloudN} 張會被覆蓋！\n\n除非你真係想刪單，否則請撳「取消」，\n然後撳頂部「☁」由雲端拉返最新落嚟。\n\n仍然要覆蓋？`);
+    if(!go){ throw new Error("已取消覆蓋，保住雲端資料"); }
+  }
+  return cloudSave(d);
+}
 async function boot(){
+  const raw=localStorage.getItem(LOCAL);
+  const localData = raw ? JSON.parse(raw) : null;
+  const localN = localData && localData.orders ? localData.orders.length : 0;
   try{
     const d=await cloudLoad();
-    data=d||defaultData(); sync="ok";
-    localStorage.setItem(LOCAL,JSON.stringify(data));
+    const cloudN = d && d.orders ? d.orders.length : 0;
+    // 雲端係空/少過本機一大截，但本機有嘢 → 用本機，唔好被空雲端蓋
+    if(localN > 0 && cloudN < localN - 2){
+      data=localData; sync="off";
+      errMsg=`⚠️ 雲端得 ${cloudN} 張，但你部機有 ${localN} 張未上傳。已保住你部機嘅資料，唔會被覆蓋。撳「重新同步」上傳。`;
+    } else {
+      data=d||defaultData(); sync="ok";
+      localStorage.setItem(LOCAL,JSON.stringify(data));
+    }
   }catch(e){
-    const raw=localStorage.getItem(LOCAL);
-    if(raw){ data=JSON.parse(raw); sync="off"; errMsg="連唔到雲端，用緊本機暫存。有返網撳「重新同步」。"; }
+    if((""+e.message).includes("密碼")){
+      data=localData||defaultData(); sync="err";
+      errMsg="密碼唔啱。撳 F5 refresh，再輸入一次啱嘅密碼（同 Apps Script 入面設嘅一樣）。";
+    } else if(localData){ data=localData; sync="off"; errMsg="連唔到雲端，用緊本機暫存。有返網撳「重新同步」。"; }
     else { data=defaultData(); sync="err"; errMsg=String(e.message||e); }
   }
   render();
 }
 async function persist(){
   dirty=true;
-  try{ localStorage.setItem(LOCAL,JSON.stringify(data)); }catch(_){}
+  try{ localStorage.setItem(LOCAL,JSON.stringify(data)); }catch(_){}  // 一定先寫本機底
   sync="save"; render();
-  try{ await cloudSave(data); dirty=false; sync="ok"; errMsg=""; }
-  catch(e){ sync="off"; errMsg="上傳唔到雲端，資料暫存咗喺本機。有返網撳「重新同步」。"; }
+  try{ await safeSave(data); dirty=false; sync="ok"; errMsg=""; }
+  catch(e){ sync="off"; errMsg=(""+e.message).includes("取消覆蓋")?"已保住雲端資料，冇覆蓋。撳頂部「☁」由雲端拉返最新。":"上傳唔到雲端，資料暫存咗喺本機（唔會唔見）。有返網撳「重新同步」。"; }
   render();
 }
 async function retry(){
   sync="save"; render();
-  try{ await cloudSave(data); dirty=false; sync="ok"; errMsg=""; }
-  catch(e){ sync="off"; errMsg="仲係連唔到。檢查下網絡。"; }
+  try{ await safeSave(data); dirty=false; sync="ok"; errMsg=""; }
+  catch(e){ sync="off"; errMsg=(""+e.message).includes("取消覆蓋")?"已保住雲端資料，冇覆蓋。":"仲係連唔到。檢查下網絡。"; }
   render();
 }
 async function pull(){
@@ -697,6 +733,10 @@ document.getElementById("app").addEventListener("change",e=>{
   if(t.dataset.bc||t.dataset.bn||t.dataset.br||t.dataset.bs){
     clearTimeout(saveTimer); saveTimer=setTimeout(persist,400); return;
   }
+});
+
+window.addEventListener("beforeunload", (e)=>{
+  if(dirty){ e.preventDefault(); e.returnValue=""; }
 });
 
 boot();
